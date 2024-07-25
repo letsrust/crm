@@ -1,9 +1,19 @@
-[package]
-name = "template"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["crm", "example"]
+resolver = "2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.86"
+prost = "0.13.1"
+prost-types = "0.13.1"
+tokio = { version = "1.39.1", features = [
+    "rt",
+    "rt-multi-thread",
+    "net",
+    "macros",
+    "fs",
+    "io-util",
+] }
+tonic = { version = "0.12.1", features = ["zstd", "tls"] }
+prost-build = "0.13.1"
+tonic-build = "0.12.1"
