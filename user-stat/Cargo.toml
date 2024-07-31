@@ -14,7 +14,17 @@ tokio = { workspace = true }
 tonic = { workspace = true }
 serde = { workspace = true }
 chrono = { version = "0.4.38", features = ["serde"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde_yaml = "0.9.34"
+futures = "0.3.30"
+itertools = "0.13.0"
 
 [dev-dependencies]
 fake = { version = "2.9.2", features = ["derive", "chrono"] }
 nanoid = "0.4.0"
+
+[build-dependencies]
+anyhow = { workspace = true }
+proto-builder-trait = "0.6.1"
+tonic-build = { workspace = true }

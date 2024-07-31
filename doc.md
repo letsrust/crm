@@ -78,3 +78,11 @@ sqlx migrate run
 ```
 
 还有很多其他功能可以探索。
+
+## Test
+
+默认情况下 cargo test 是不打印 println 的信息的，可以在运行时打开
+
+```shell
+cargo test query_should_work -- --nocapture
+```
