@@ -1,5 +1,5 @@
 [workspace]
-members = ["crm", "example", "user-stat"]
+members = ["crm", "example", "user-stat", "crm-metadata", "crm-send"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -24,3 +24,5 @@ sqlx = { version = "0.8.0", features = [
     "runtime-tokio-rustls",
 ] }
 serde = { version = "1.0.200", features = ["derive"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
