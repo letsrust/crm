@@ -30,8 +30,9 @@ impl Notification for NotificationService {
 
     async fn send(
         &self,
-        _request: Request<Streaming<SendRequest>>,
+        request: Request<Streaming<SendRequest>>,
     ) -> ServiceResult<Self::SendStream> {
-        todo!()
+        let stream = request.into_inner();
+        self.send(stream).await
     }
 }
