@@ -1,14 +1,17 @@
+use std::{collections::HashSet, hash::Hash};
+
 use chrono::{DateTime, Days, Utc};
 use fake::{
     faker::{chrono::en::DateTimeBetween, lorem::en::Sentence, name::en::Name},
     Fake, Faker,
 };
-use futures::{Stream, StreamExt};
+use futures::{stream, Stream, StreamExt};
 use prost_types::Timestamp;
 use rand::Rng;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Response, Status};
+use tracing::info;
 
 use crate::{
     pb::{Content, MaterializeRequest, Publisher},
@@ -25,9 +28,12 @@ impl MetadataService {
         let (tx, rx) = mpsc::channel(CHANNEL_SIZE);
         tokio::spawn(async move {
             while let Some(Ok(req)) = stream.next().await {
+                info!("process req id -> {}", req.id);
                 let content = Content::materialize(req.id);
                 tx.send(Ok(content)).await.unwrap();
             }
+
+            info!("materialize request stream end!");
         });
 
         let stream = ReceiverStream::new(rx);
@@ -53,6 +59,32 @@ impl Content {
             likes: rng.gen_range(1234..100000),
             dislikes: rng.gen_range(123..10000),
         }
+    }
+
+    pub fn to_body(&self) -> String {
+        format!("Content: {:?}", self)
+    }
+}
+
+pub struct Tpl<'a>(pub &'a [Content]);
+
+impl<'a> Tpl<'a> {
+    pub fn to_body(&self) -> String {
+        format!("Tpl: {:?}", self.0)
+    }
+}
+
+impl Eq for MaterializeRequest {}
+impl Hash for MaterializeRequest {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl MaterializeRequest {
+    pub fn new_with_ids(ids: &[u32]) -> impl Stream<Item = Self> {
+        let reqs: HashSet<_> = ids.iter().map(|id| Self { id: *id }).collect();
+        stream::iter(reqs)
     }
 }
 

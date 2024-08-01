@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package crm;
+package user;
 
 import "google/protobuf/timestamp.proto";
 
@@ -20,7 +20,7 @@ message CreateUserRequest {
     string email = 2;
 }
 
-service UserService {
+service UserSrv {
     rpc GetUser(GetUserRequest) returns (User) {}
     rpc CreateUser(CreateUserRequest) returns (User) {}
 }

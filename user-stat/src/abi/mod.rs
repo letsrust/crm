@@ -66,8 +66,8 @@ fn timestamp_query(name: &str, lower: Option<Timestamp>, upper: Option<Timestamp
     format!(
         "{} BETWEEN '{}' AND '{}'",
         name,
-        ts_to_utc(upper.unwrap()).to_rfc3339(),
-        ts_to_utc(lower.unwrap()).to_rfc3339()
+        ts_to_utc(lower.unwrap()).to_rfc3339(),
+        ts_to_utc(upper.unwrap()).to_rfc3339()
     )
 }
 

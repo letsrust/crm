@@ -1,5 +1,5 @@
 use tonic::Status;
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::{
     pb::{send_request::Msg, EmailMessage, SendRequest, SendResponse},
@@ -11,10 +11,14 @@ use super::{to_ts, Sender};
 impl Sender for EmailMessage {
     async fn send(self, svc: NotificationService) -> Result<SendResponse, Status> {
         let message_id = self.message_id.clone();
+        let sender = self.sender.clone();
+        let recipients = self.recipients.join(",");
         svc.sender.send(Msg::Email(self)).await.map_err(|e| {
             warn!("Failed to send email message: {:?}", e);
             Status::internal("Failed to send email message")
         })?;
+
+        info!("email sender: {:?}, recipients: {}", sender, recipients);
 
         Ok(SendResponse {
             message_id,

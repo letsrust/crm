@@ -26,6 +26,7 @@ rand = "0.8.5"
 fake = { version = "2.9.2", features = ["derive", "chrono"], optional = true }
 chrono = { version = "0.4.38", features = ["serde"] }
 uuid = { version = "1.10.0", features = ["v4"] }
+crm-metadata = { workspace = true }
 
 [dev-dependencies]
 crm-send = { workspace = true, features = ["test_utils"] }

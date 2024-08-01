@@ -8,8 +8,18 @@ fn main() -> Result<()> {
     let builder = tonic_build::configure();
 
     builder
+        .build_client(true)
+        .build_server(true)
         .out_dir("src/pb")
-        .compile(&["../protos/crm/crm.proto"], &["../protos"])?;
+        .compile(
+            &[
+                "../protos/crm/messages.proto",
+                "../protos/crm/rpc.proto",
+                "../protos/crm/users.proto",
+            ],
+            &["../protos"],
+        )
+        .unwrap();
 
     Ok(())
 }
