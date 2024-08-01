@@ -5,14 +5,17 @@ use crm_metadata::pb::{Content, MaterializeRequest};
 use crm_send::pb::SendRequest;
 use futures::StreamExt;
 use prost_types::Timestamp;
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{self, Receiver};
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::{Response, Status};
+use tonic::{Response, Status, Streaming};
 use tracing::{info, warn};
-use user_stat::pb::{QueryRequest, TimeQuery};
+use user_stat::pb::{QueryRequest, TimeQuery, User};
 
 use crate::{
-    pb::{WelcomeRequest, WelcomeResponse},
+    pb::{
+        RecallRequest, RecallResponse, RemindRequest, RemindResponse, WelcomeRequest,
+        WelcomeResponse,
+    },
     CrmService,
 };
 
@@ -23,41 +26,60 @@ impl CrmService {
     ) -> Result<Response<WelcomeResponse>, Status> {
         let req_id = request.id;
 
-        // let d1 = Utc::now() - Duration::days(request.interval as _);
-        // let d2 = d1 + Duration::days(1);
-
-        let d1 = to_ts(request.interval as _);
-        let d2 = to_ts(0);
-
-        let mut timestamps = HashMap::new();
-
-        let time_query = TimeQuery {
-            lower: Some(d1),
-            upper: Some(d2),
-        };
-        timestamps.insert("created_at".to_string(), time_query);
-
-        let query = QueryRequest {
-            timestamps,
-            ids: HashMap::new(),
-        };
-
+        let query = self.new_user_stat_query(request.interval, "created_at".to_string());
         info!("query user stats: {:?}", query);
-        let mut user_stat_res = self.user_stats.clone().query(query).await?.into_inner();
+        let user_stat_res = self.user_stats.clone().query(query).await?.into_inner();
 
-        let contents = self
-            .metadata
-            .clone()
-            .materialize(MaterializeRequest::new_with_ids(&request.content_ids))
-            .await?
-            .into_inner();
-        let contents: Vec<Content> = contents
-            .filter_map(|v| async move { v.ok() })
-            .collect()
-            .await;
-        let contents = Arc::new(contents);
-        info!("contents size: {}", contents.clone().len());
+        let contents = self.get_contents(&request.content_ids).await;
+        let rx = self.build_send_stream(user_stat_res, contents.clone(), "Welcome".to_string());
 
+        info!("call notification");
+        let reqs = ReceiverStream::new(rx);
+        self.notification.clone().send(reqs).await?;
+
+        Ok(Response::new(WelcomeResponse { id: req_id }))
+    }
+
+    pub async fn recall(&self, request: RecallRequest) -> Result<Response<RecallResponse>, Status> {
+        let req_id = request.id;
+
+        let query =
+            self.new_user_stat_query(request.last_visit_interval, "last_visited_at".to_string());
+        info!("query user stats: {:?}", query);
+        let user_stat_res = self.user_stats.clone().query(query).await?.into_inner();
+
+        let contents = self.get_contents(&request.content_ids).await;
+        let rx = self.build_send_stream(user_stat_res, contents.clone(), "Recall".to_string());
+
+        let reqs = ReceiverStream::new(rx);
+        self.notification.clone().send(reqs).await?;
+
+        Ok(Response::new(RecallResponse { id: req_id }))
+    }
+
+    pub async fn remind(&self, request: RemindRequest) -> Result<Response<RemindResponse>, Status> {
+        let req_id = request.id;
+
+        let query =
+            self.new_user_stat_query(request.last_visit_interval, "last_visited_at".to_string());
+        info!("query user stats: {:?}", query);
+        let user_stat_res = self.user_stats.clone().query(query).await?.into_inner();
+
+        let contents = Arc::new(vec![]);
+        let rx = self.build_send_stream(user_stat_res, contents, "Remind".to_string());
+
+        let reqs = ReceiverStream::new(rx);
+        self.notification.clone().send(reqs).await?;
+
+        Ok(Response::new(RemindResponse { id: req_id }))
+    }
+
+    fn build_send_stream(
+        &self,
+        mut user_stat_res: Streaming<User>,
+        contents: Arc<Vec<Content>>,
+        subject: String,
+    ) -> Receiver<SendRequest> {
         let (tx, rx) = mpsc::channel(1024);
         let sender = self.config.server.sender_email.clone();
         tokio::spawn(async move {
@@ -66,20 +88,56 @@ impl CrmService {
                 let sender = sender.clone();
                 let tx = tx.clone();
 
-                let req = SendRequest::new("Welcome".to_string(), sender, &[user.email], &contents);
+                let req = SendRequest::new(subject.clone(), sender, &[user.email], &contents);
                 if let Err(e) = tx.send(req).await {
                     warn!("Failed to send message: {:?}", e);
                 }
-
-                // info!("sent {:?}", req_clone);
             }
         });
 
-        info!("call notification");
-        let reqs = ReceiverStream::new(rx);
-        self.notification.clone().send(reqs).await?;
+        rx
+    }
 
-        Ok(Response::new(WelcomeResponse { id: req_id }))
+    fn new_user_stat_query(&self, interval: u32, query_key: String) -> QueryRequest {
+        let d1 = to_ts(interval as _);
+        let d2 = to_ts(0);
+
+        let mut timestamps = HashMap::new();
+        let time_query = TimeQuery {
+            lower: Some(d1),
+            upper: Some(d2),
+        };
+        timestamps.insert(query_key, time_query);
+
+        QueryRequest {
+            timestamps,
+            ids: HashMap::new(),
+        }
+    }
+
+    async fn get_contents(&self, content_ids: &[u32]) -> Arc<Vec<Content>> {
+        let contents = self
+            .metadata
+            .clone()
+            .materialize(MaterializeRequest::new_with_ids(content_ids))
+            .await;
+
+        match contents {
+            Ok(c) => {
+                let contents: Vec<Content> = c
+                    .into_inner()
+                    .filter_map(|v| async move { v.ok() })
+                    .collect()
+                    .await;
+                let contents = Arc::new(contents);
+                info!("contents size: {}", contents.clone().len());
+                contents
+            }
+            Err(_) => {
+                warn!("failed to get contents: {:?}", content_ids);
+                Arc::new(vec![])
+            }
+        }
     }
 }
 
