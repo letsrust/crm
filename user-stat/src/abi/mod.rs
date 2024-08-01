@@ -1,7 +1,7 @@
 use chrono::{DateTime, TimeZone, Utc};
 use itertools::Itertools;
 use prost_types::Timestamp;
-use tonic::{Response, Status};
+use tonic::Response;
 use tracing::info;
 
 use crate::{
@@ -33,10 +33,13 @@ impl UserStatsService {
             .fetch_all(&self.inner.pool)
             .await
         else {
-            return Err(Status::internal(format!(
-                "Failed to fetch data with query: {}",
-                req.query
-            )));
+            // return Err(Status::internal(format!(
+            //     "Failed to fetch data with query: {}",
+            //     req.query
+            // )));
+            return Ok(Response::new(Box::pin(futures::stream::iter(
+                vec![].into_iter().map(Ok),
+            ))));
         };
 
         Ok(Response::new(Box::pin(futures::stream::iter(
@@ -87,7 +90,7 @@ mod tests {
     };
 
     #[tokio::test]
-    async fn query_should_work() -> Result<()> {
+    async fn user_stats_query_should_work() -> Result<()> {
         let config = AppConfig::load().expect("Failed to load config");
         let svc = UserStatsService::new(config).await;
 
