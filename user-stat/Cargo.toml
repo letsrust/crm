@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[features]
+default = []
+test_utils = ["crm-common"]
+
 [dependencies]
 anyhow = { workspace = true }
 prost = { workspace = true }
@@ -19,10 +23,12 @@ tracing-subscriber = { workspace = true }
 serde_yaml = "0.9.34"
 futures = "0.3.30"
 itertools = "0.13.0"
+crm-common = { workspace = true, optional = true }
 
 [dev-dependencies]
 fake = { version = "2.9.2", features = ["derive", "chrono"] }
 nanoid = "0.4.0"
+user-stat = { workspace = true, features = ["test_utils"] }
 
 [build-dependencies]
 anyhow = { workspace = true }

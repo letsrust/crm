@@ -1,5 +1,12 @@
 [workspace]
-members = ["crm", "example", "user-stat", "crm-metadata", "crm-send"]
+members = [
+    "crm",
+    "example",
+    "user-stat",
+    "crm-metadata",
+    "crm-send",
+    "crm-common",
+]
 resolver = "2"
 
 [workspace.dependencies]
@@ -26,3 +33,7 @@ sqlx = { version = "0.8.0", features = [
 serde = { version = "1.0.200", features = ["derive"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+crm-common = { path = "crm-common" }
+crm-metadata = { path = "crm-metadata" }
+crm-send = { path = "crm-send" }
+user-stat = { path = "user-stat" }

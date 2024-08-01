@@ -80,19 +80,15 @@ mod tests {
     use std::collections::HashMap;
 
     use anyhow::Result;
-    use chrono::Utc;
     use futures::StreamExt;
-    use prost_types::Timestamp;
 
-    use crate::{
-        pb::{QueryRequest, TimeQuery},
-        AppConfig, UserStatsService,
-    };
+    use crate::{pb::QueryRequest, test_utils::tq, UserStatsService};
 
     #[tokio::test]
     async fn user_stats_query_should_work() -> Result<()> {
-        let config = AppConfig::load().expect("Failed to load config");
-        let svc = UserStatsService::new(config).await;
+        // let config = AppConfig::load().expect("Failed to load config");
+        // let svc = UserStatsService::new(config).await;
+        let (_tdb, svc) = UserStatsService::new_for_test().await?;
 
         let mut timestamps = HashMap::new();
         timestamps.insert("created_at".to_string(), tq(Some(120), None));
@@ -118,22 +114,5 @@ mod tests {
         }
 
         Ok(())
-    }
-
-    fn tq(lower: Option<i64>, upper: Option<i64>) -> TimeQuery {
-        TimeQuery {
-            lower: lower.map(to_ts),
-            upper: upper.map(to_ts),
-        }
-    }
-
-    fn to_ts(days: i64) -> Timestamp {
-        let dt = Utc::now()
-            .checked_sub_signed(chrono::Duration::days(days))
-            .unwrap();
-        Timestamp {
-            seconds: dt.timestamp(),
-            nanos: dt.timestamp_subsec_nanos() as i32,
-        }
     }
 }
